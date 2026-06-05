@@ -43,7 +43,10 @@ let state = {
   db: null, // Firebase db 인스턴스
   selectedEmoji: '', // 모달에서 현재 선택된 이모지
   activeModalDate: '', // 모달이 띄워진 날짜 (YYYY-MM-DD)
-  deferredInstallPrompt: null // PWA 설치 프롬프트
+  deferredInstallPrompt: null, // PWA 설치 프롬프트
+  isLocked: false,
+  hasPassword: false,
+  savedPassword: ''
 };
 
 // 2. DOM Elements
@@ -57,10 +60,19 @@ const elements = {
   nextMonthBtn: document.getElementById('btn-next-month'),
   daysGridContainer: document.getElementById('days-grid-container'),
   
-  // Modals
+  // Modals & Overlays
   diaryModal: document.getElementById('diary-modal'),
   closeDiaryModalBtn: document.getElementById('btn-close-diary-modal'),
   cancelDiaryBtn: document.getElementById('btn-cancel-diary'),
+  
+  // Lock Screen Elements
+  lockScreenOverlay: document.getElementById('lock-screen-overlay'),
+  lockTitle: document.getElementById('lock-title'),
+  lockSubtitle: document.getElementById('lock-subtitle'),
+  inputPassword: document.getElementById('input-password'),
+  passwordError: document.getElementById('password-error'),
+  btnSubmitPassword: document.getElementById('btn-submit-password'),
+  btnResetPassword: document.getElementById('btn-reset-password'),
   
   // Diary Modal Form elements
   diaryModalDateLabel: document.getElementById('diary-modal-date-label'),
@@ -296,9 +308,101 @@ function handleLoginSuccess(userPayload) {
   
   showToast(`${state.currentUser.name}님, 반갑습니다!`);
   
-  // Load user data
-  loadDiaryEntries();
+  // Check Password before loading data
+  checkPasswordSetup();
 }
+
+// ================= PASSWORD LOCK LOGIC =================
+async function checkPasswordSetup() {
+  const email = state.currentUser.email;
+  elements.lockScreenOverlay.style.display = 'flex';
+  elements.inputPassword.value = '';
+  elements.passwordError.textContent = '';
+  state.isLocked = true;
+  
+  if (state.db) {
+    try {
+      const doc = await state.db.collection('users_settings').doc(email).get();
+      if (doc.exists && doc.data().password) {
+        state.hasPassword = true;
+        state.savedPassword = doc.data().password;
+      } else {
+        state.hasPassword = false;
+      }
+    } catch(e) {
+      console.error(e);
+      state.hasPassword = false;
+    }
+  }
+  
+  // Reset password flow check
+  if (sessionStorage.getItem('reset_password') === 'true') {
+    sessionStorage.removeItem('reset_password');
+    state.hasPassword = false;
+    if (state.db) {
+      await state.db.collection('users_settings').doc(email).set({ password: '' }, { merge: true });
+    }
+    showToast('비밀번호가 초기화되었습니다. 새 비밀번호를 설정해주세요.');
+  }
+
+  if (state.hasPassword) {
+    elements.lockTitle.textContent = '다이어리 잠금';
+    elements.lockSubtitle.textContent = '비밀번호를 입력해 주세요.';
+    elements.btnSubmitPassword.textContent = '잠금 해제';
+    elements.btnResetPassword.style.display = 'block';
+  } else {
+    elements.lockTitle.textContent = '비밀번호 설정';
+    elements.lockSubtitle.textContent = '다이어리를 보호할 새 비밀번호를 입력해 주세요.';
+    elements.btnSubmitPassword.textContent = '설정하기';
+    elements.btnResetPassword.style.display = 'none';
+  }
+}
+
+async function handleSubmitPassword() {
+  const pwd = elements.inputPassword.value.trim();
+  if (!pwd) {
+    elements.passwordError.textContent = '비밀번호를 입력하세요.';
+    return;
+  }
+  
+  if (state.hasPassword) {
+    // Unlock
+    if (pwd === state.savedPassword) {
+      elements.lockScreenOverlay.style.display = 'none';
+      state.isLocked = false;
+      elements.passwordError.textContent = '';
+      loadDiaryEntries();
+    } else {
+      elements.passwordError.textContent = '비밀번호가 틀렸습니다.';
+    }
+  } else {
+    // Setup
+    if (state.db) {
+      await state.db.collection('users_settings').doc(state.currentUser.email).set({ password: pwd }, { merge: true });
+    }
+    state.hasPassword = true;
+    state.savedPassword = pwd;
+    elements.lockScreenOverlay.style.display = 'none';
+    state.isLocked = false;
+    elements.passwordError.textContent = '';
+    showToast('비밀번호가 설정되었습니다.');
+    loadDiaryEntries();
+  }
+}
+
+function handleResetPassword() {
+  if (confirm('비밀번호를 초기화하시겠습니까? 본인 확인을 위해 구글 계정으로 다시 로그인해야 합니다.')) {
+    sessionStorage.setItem('reset_password', 'true');
+    elements.lockScreenOverlay.style.display = 'none';
+    handleLogout();
+    
+    // Automatically open google login prompt again if possible
+    if (typeof google !== 'undefined') {
+      google.accounts.id.prompt();
+    }
+  }
+}
+// =======================================================
 
 function handleLogout() {
   state.currentUser = {
@@ -477,9 +581,6 @@ function renderCalendar() {
     let cellContent = `<span class="day-number">${day}</span>`;
     if (entry) {
       cellContent += `<span class="day-emoji">${entry.emoji}</span>`;
-      if (entry.message) {
-        cellContent += `<span class="day-preview-text">${entry.message}</span>`;
-      }
     } else {
       cellContent += `<div style="flex-grow: 1;"></div>`; // spacer
     }
@@ -820,6 +921,13 @@ function bindEventListeners() {
   
   // Auth Logout
   elements.btnLogoutBtn.addEventListener('click', handleLogout);
+
+  // Lock Screen Actions
+  elements.btnSubmitPassword.addEventListener('click', handleSubmitPassword);
+  elements.btnResetPassword.addEventListener('click', handleResetPassword);
+  elements.inputPassword.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') handleSubmitPassword();
+  });
 }
 
 // App Bootstrapping
@@ -837,8 +945,14 @@ async function bootstrapApp() {
   // 4. Set up Auth UI & Google GSI script
   renderGoogleButton();
   
-  // 5. Load diaries (localStorage fallback works instantly)
-  await loadDiaryEntries();
+  // 5. App remains locked until handleLoginSuccess -> checkPasswordSetup
+  // Guests will see empty data via loadDiaryEntries inside handleLogout 
+  // if they don't sign in. Wait, guest user should also bypass lock or have a default.
+  // Actually, guest user has no email, so checkPasswordSetup will use 'guest_user'.
+  // Let's just run loadDiaryEntries if they are guest.
+  if (state.currentUser.email === 'guest_user') {
+    await loadDiaryEntries();
+  }
   
   // 6. Bind UI event listeners
   bindEventListeners();

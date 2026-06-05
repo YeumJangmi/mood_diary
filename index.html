@@ -140,6 +140,22 @@
       
     </div>
 
+    <!-- ================= LOCK SCREEN ================= -->
+    <div class="lock-screen-overlay" id="lock-screen-overlay" style="display: none;">
+      <div class="lock-screen-box glass-card">
+        <i data-lucide="lock" style="width: 48px; height: 48px; color: var(--accent); margin-bottom: 16px;"></i>
+        <h2 id="lock-title">다이어리 잠금</h2>
+        <p class="lock-subtitle" id="lock-subtitle">비밀번호를 입력해 주세요.</p>
+        
+        <input type="password" class="input-text" id="input-password" placeholder="비밀번호" maxlength="20" style="text-align: center; font-size: 1.2rem; letter-spacing: 4px; margin: 20px 0;" />
+        
+        <div id="password-error" style="color: var(--danger); font-size: 0.85rem; min-height: 20px; margin-bottom: 15px;"></div>
+        
+        <button class="btn-primary" id="btn-submit-password" style="width: 100%;">확인</button>
+        <button class="btn-secondary" id="btn-reset-password" style="width: 100%; margin-top: 10px; font-size: 0.85rem;">비밀번호를 잊으셨나요?</button>
+      </div>
+    </div>
+
     <!-- ================= MODALS ================= -->
 
     <!-- Diary Write/Edit Modal -->
