@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="ko" data-theme="light">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>💖</text></svg>" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    
+    <!-- SEO Meta Tags -->
+    <title>매일의 나를 기록하는 감정 기록 다이어리</title>
+    <meta name="description" content="달력에 오늘의 감정 이모지와 짧은 일기를 기록하는 깔끔하고 심플한 감정 기록 다이어리" />
+    
+    <!-- PWA Settings -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="theme-color" content="#ffffff" id="theme-color-meta" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="기분 다이어리" />
+    <link rel="apple-touch-icon" href="/icon.svg" />
+
+    <!-- Style Link -->
+    <link rel="stylesheet" href="style.css" />
+
+    <!-- Google Identity Services (Google Sign In) SDK -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <!-- Firebase Compat SDKs (CDN) -->
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore-compat.js"></script>
+    
+    <!-- Lucide Icons (CDN) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <!-- Google Fonts (Outfit & Noto Sans KR) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet" />
+  </head>
+  <body>
+    <div class="app-container">
+      
+      <!-- 1. Header Area -->
+      <header class="glass-card" id="app-header">
+        <div class="brand-section">
+          <h1 class="brand-title">매일의 나</h1>
+          <span class="brand-subtitle">감정 기록 다이어리</span>
+        </div>
+        <div class="actions-section">
+          <!-- Firebase Sync Config button -->
+          <button class="btn-icon" id="btn-sync-config" title="동기화 설정">
+            <i data-lucide="cloud-lightning"></i>
+          </button>
+          
+          <!-- Theme Toggle button -->
+          <button class="btn-icon" id="btn-theme-toggle" title="화면 테마 변경">
+            <i data-lucide="sun" id="theme-icon"></i>
+          </button>
+          
+          <!-- User Session Control -->
+          <div id="auth-container">
+            <!-- Google Sign-In button container (rendered dynamically by GSI client) -->
+            <div id="google-signin-btn"></div>
+          </div>
+          
+          <div id="profile-container" style="display: none;">
+            <div class="user-profile">
+              <img src="" alt="Profile" id="user-photo" class="user-avatar" />
+              <span id="user-name-text" class="user-name">로그인</span>
+              <button class="btn-icon" id="btn-logout" title="로그아웃" style="width: 26px; height: 26px; border: none; background: transparent;">
+                <i data-lucide="log-out" style="width: 14px; height: 14px;"></i>
+              </button>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <!-- PWA Installation Banner (Hidden by default) -->
+      <div class="install-banner" id="pwa-install-banner" style="display: none;">
+        <div class="install-text">
+          ✨ 기분 다이어리를 앱으로 설치해 보세요!
+        </div>
+        <button class="btn-primary" id="btn-pwa-install" style="padding: 6px 12px; font-size: 0.8rem; border-radius: 8px;">
+          설치하기
+        </button>
+      </div>
+
+      <!-- 2. Main Calendar Card -->
+      <main class="glass-card calendar-card">
+        <div class="calendar-header">
+          <div class="current-month-year" id="current-month-year-label">
+            2026년 6월
+          </div>
+          <div class="month-nav">
+            <button class="btn-icon" id="btn-prev-month" title="이전 달">
+              <i data-lucide="chevron-left"></i>
+            </button>
+            <button class="btn-icon" id="btn-today-month" title="이번 달">
+              <i data-lucide="calendar"></i>
+            </button>
+            <button class="btn-icon" id="btn-next-month" title="다음 달">
+              <i data-lucide="chevron-right"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Weekdays header -->
+        <div class="weekdays-grid">
+          <div class="weekday-cell">일</div>
+          <div class="weekday-cell">월</div>
+          <div class="weekday-cell">화</div>
+          <div class="weekday-cell">수</div>
+          <div class="weekday-cell">목</div>
+          <div class="weekday-cell">금</div>
+          <div class="weekday-cell">토</div>
+        </div>
+
+        <!-- Days grid container -->
+        <div class="days-grid" id="days-grid-container">
+          <!-- Rendered dynamically by app.js -->
+        </div>
+      </main>
+
+      <!-- 3. Monthly Mood Summary Info -->
+      <section class="glass-card summary-container">
+        <h2 class="summary-title">
+          <i data-lucide="bar-chart-3" style="color: var(--accent);"></i>
+          이달의 감정 요약
+        </h2>
+        
+        <div class="stats-grid">
+          <div class="stat-card">
+            <span class="stat-value" id="stat-record-rate">0%</span>
+            <span class="stat-desc" id="stat-record-count">기록 없음 (0/30일)</span>
+          </div>
+          <div class="stat-card">
+            <span class="stat-value" id="stat-main-mood">빛나는 하루</span>
+            <span class="stat-desc">이번 달 주로 느낀 감정</span>
+          </div>
+        </div>
+
+        <!-- Mood Ratios (Percentage chart) -->
+        <div class="mood-ratio-container" id="mood-ratios-list">
+          <!-- Rendered dynamically by app.js -->
+        </div>
+      </section>
+      
+    </div>
+
+    <!-- ================= MODALS ================= -->
+
+    <!-- Diary Write/Edit Modal -->
+    <div class="modal-overlay" id="diary-modal">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3 class="modal-title" id="diary-modal-date-label">6월 5일의 기록</h3>
+          <button class="btn-icon" id="btn-close-diary-modal" style="width: 32px; height: 32px;">
+            <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+          </button>
+        </div>
+        
+        <!-- Emoji Selection Picker -->
+        <div class="emoji-picker-section">
+          <span class="picker-label">오늘의 감정이나 기호를 선택하세요</span>
+          <div class="emoji-grid" id="emoji-picker-grid">
+            <!-- Emojis (both built-in and user-customized) will be rendered here -->
+          </div>
+          
+          <!-- Custom Emoji Adder Row -->
+          <div class="custom-emoji-adder">
+            <input type="text" class="input-text" id="input-custom-emoji" placeholder="나만의 이모지 입력 (예: 🍕, 🌸)" maxlength="2" />
+            <button class="btn-add-emoji" id="btn-add-custom-emoji">추가</button>
+          </div>
+        </div>
+
+        <!-- Diary Message Input -->
+        <div class="form-group">
+          <span class="picker-label">오늘 하루를 아주 짧은 메시지로 기록해 보세요</span>
+          <textarea class="textarea-message" id="textarea-diary-message" placeholder="여기에 기분이나 하고 싶은 말을 남기세요 (최대 100자)" maxlength="100"></textarea>
+          <span class="char-counter" id="char-counter-label">0/100</span>
+        </div>
+
+        <!-- Action buttons (Delete, Save) -->
+        <div class="modal-actions">
+          <button class="btn-delete" id="btn-delete-diary" style="display: none;">삭제</button>
+          <button class="btn-secondary" id="btn-cancel-diary">취소</button>
+          <button class="btn-primary" id="btn-save-diary">기록하기</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Sync / Firebase Cloud Configuration Modal -->
+    <div class="modal-overlay" id="sync-modal">
+      <div class="modal-box">
+        <div class="modal-header">
+          <h3 class="modal-title">클라우드 동기화 설정</h3>
+          <button class="btn-icon" id="btn-close-sync-modal" style="width: 32px; height: 32px;">
+            <i data-lucide="x" style="width: 16px; height: 16px;"></i>
+          </button>
+        </div>
+
+        <p class="sync-help-text">
+          이 다이어리는 기본적으로 웹 브라우저의 안전한 로컬 저장소에 저장됩니다. <br/>
+          다른 기기(아이폰, 태블릿, 다른 PC 등)와 데이터를 실시간으로 동기화하려면 본인의 <strong>Firebase Firestore</strong> 프로젝트 설정을 입력하세요.
+        </p>
+
+        <div class="config-status-badge disconnected" id="sync-status-badge">
+          <span class="status-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #9ca3af;" id="sync-status-indicator-dot"></span>
+          <span id="sync-status-text">로컬 저장소 모드 (오프라인)</span>
+        </div>
+
+        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 6px;">
+          <div class="form-group">
+            <label class="picker-label" style="font-size: 0.75rem;">Firebase API Key</label>
+            <input type="password" class="input-text" id="firebase-apiKey" placeholder="AIzaSy..." />
+          </div>
+          <div class="form-group">
+            <label class="picker-label" style="font-size: 0.75rem;">Project ID</label>
+            <input type="text" class="input-text" id="firebase-projectId" placeholder="my-mood-diary" />
+          </div>
+          <div class="form-group">
+            <label class="picker-label" style="font-size: 0.75rem;">App ID</label>
+            <input type="text" class="input-text" id="firebase-appId" placeholder="1:12345:web:abcd..." />
+          </div>
+          <div class="form-group" id="google-client-id-group">
+            <label class="picker-label" style="font-size: 0.75rem;">구글 로그인 Client ID (선택사항 - 구글 연동용)</label>
+            <input type="text" class="input-text" id="google-clientId" placeholder="12345-abcde.apps.googleusercontent.com" />
+            <span class="sync-help-text" style="font-size: 0.7rem; color: var(--text-muted);">
+              * 빈칸 시 기본 테스트 계정 혹은 공용 테스트 구글 로그인 모드로 작동합니다.
+            </span>
+          </div>
+        </div>
+
+        <div class="modal-actions" style="margin-top: 15px;">
+          <button class="btn-delete" id="btn-reset-sync-config" style="border-color: var(--text-muted); color: var(--text-muted);">초기화</button>
+          <button class="btn-secondary" id="btn-close-sync-settings">닫기</button>
+          <button class="btn-primary" id="btn-save-sync-config">설정 저장</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Floating Toast Message Container -->
+    <div class="toast-container" id="toast-message">
+      <i data-lucide="check-circle-2" style="color: var(--accent); width: 18px; height: 18px;" id="toast-icon"></i>
+      <span id="toast-text">저장 완료!</span>
+    </div>
+
+    <!-- Application Script Logic -->
+    <script src="app.js"></script>
+  </body>
+</html>

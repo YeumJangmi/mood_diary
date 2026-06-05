@@ -1,0 +1,771 @@
+/* 
+================================================================
+  매일의 나를 기록하는 감정 기록 다이어리 - CSS Design System
+================================================================
+*/
+
+/* 1. Global Reset & Fonts */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: 'Outfit', 'Noto Sans KR', sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+:root {
+  /* Colors - Light Theme */
+  --bg-gradient: linear-gradient(135deg, #f5f3ff 0%, #e0e7ff 100%);
+  --card-bg: rgba(255, 255, 255, 0.65);
+  --card-bg-solid: #ffffff;
+  --card-border: rgba(255, 255, 255, 0.5);
+  --border-radius: 24px;
+  --border-radius-sm: 12px;
+  
+  --text-primary: #1e1b4b;
+  --text-secondary: #4f46e5;
+  --text-muted: #6b7280;
+  
+  --shadow: 0 10px 30px 0 rgba(79, 70, 229, 0.08);
+  --shadow-hover: 0 15px 35px 0 rgba(79, 70, 229, 0.15);
+  --accent: #6366f1;
+  --accent-light: #e0e7ff;
+  --accent-hover: #4f46e5;
+  --danger: #ef4444;
+  --danger-light: #fee2e2;
+  
+  /* Mood Colors (Light) */
+  --color-happy: #fde047;
+  --color-excited: #f97316;
+  --color-calm: #4ade80;
+  --color-sad: #60a5fa;
+  --color-angry: #f87171;
+  --color-tired: #94a3b8;
+  
+  --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --safe-area-top: env(safe-area-inset-top, 0px);
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+[data-theme="dark"] {
+  /* Colors - Dark Theme */
+  --bg-gradient: linear-gradient(135deg, #09090b 0%, #0c0a09 50%, #180f2a 100%);
+  --card-bg: rgba(15, 23, 42, 0.55);
+  --card-bg-solid: #0f172a;
+  --card-border: rgba(255, 255, 255, 0.06);
+  
+  --text-primary: #f8fafc;
+  --text-secondary: #a5b4fc;
+  --text-muted: #94a3b8;
+  
+  --shadow: 0 10px 30px 0 rgba(0, 0, 0, 0.35);
+  --shadow-hover: 0 15px 35px 0 rgba(0, 0, 0, 0.5);
+  --accent: #818cf8;
+  --accent-light: #1e1b4b;
+  --accent-hover: #6366f1;
+  --danger: #f87171;
+  --danger-light: #451a1a;
+}
+
+body {
+  background: var(--bg-gradient);
+  color: var(--text-primary);
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  transition: var(--transition);
+  padding: calc(24px + var(--safe-area-top)) 16px calc(24px + var(--safe-area-bottom)) 16px;
+  overflow-x: hidden;
+}
+
+/* 2. Container Layout */
+.app-container {
+  width: 100%;
+  max-width: 760px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeIn 0.6s ease-out;
+}
+
+/* 3. Glassmorphism Card Style */
+.glass-card {
+  background: var(--card-bg);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border: 1px solid var(--card-border);
+  border-radius: var(--border-radius);
+  box-shadow: var(--shadow);
+  padding: 24px;
+  transition: var(--transition);
+}
+
+.glass-card:hover {
+  box-shadow: var(--shadow-hover);
+}
+
+/* 4. Header Component Styling */
+header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+}
+
+.brand-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.brand-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent) 0%, #ec4899 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: -0.5px;
+}
+
+.brand-subtitle {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.actions-section {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Common Button Styling */
+.btn-icon {
+  background: transparent;
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-icon:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+  transform: translateY(-2px);
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: white;
+  border: none;
+  padding: 10px 18px;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition);
+}
+
+.btn-primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-2px);
+}
+
+.btn-secondary {
+  background: var(--card-border);
+  color: var(--text-primary);
+  border: 1px solid var(--card-border);
+  padding: 10px 18px;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition);
+}
+
+.btn-secondary:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* User Account Display */
+.user-profile {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--card-border);
+  padding: 6px 14px 6px 6px;
+  border-radius: 30px;
+  border: 1px solid var(--card-border);
+}
+
+.user-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1.5px solid var(--accent);
+}
+
+.user-name {
+  font-size: 0.85rem;
+  font-weight: 600;
+  max-width: 80px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* 5. Calendar Layout */
+.calendar-card {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.current-month-year {
+  font-size: 1.25rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.month-nav {
+  display: flex;
+  gap: 8px;
+}
+
+/* Weekday Grid */
+.weekdays-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  text-align: center;
+  border-bottom: 1px solid var(--card-border);
+  padding-bottom: 8px;
+}
+
+.weekday-cell {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.weekday-cell:first-child { color: var(--danger); } /* Sunday */
+.weekday-cell:last-child { color: #3b82f6; } /* Saturday */
+
+/* Days Grid */
+.days-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 10px;
+}
+
+.day-cell {
+  aspect-ratio: 1;
+  border-radius: var(--border-radius-sm);
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 4px;
+  cursor: pointer;
+  position: relative;
+  transition: var(--transition);
+}
+
+[data-theme="dark"] .day-cell {
+  background: rgba(15, 23, 42, 0.25);
+}
+
+.day-cell:hover {
+  transform: translateY(-3px) scale(1.03);
+  background: var(--accent-light);
+  border-color: var(--accent);
+}
+
+.day-number {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+  align-self: flex-start;
+  margin-left: 4px;
+}
+
+.day-cell.sunday .day-number { color: var(--danger); }
+.day-cell.saturday .day-number { color: #3b82f6; }
+
+/* Inactive dates from prev/next month */
+.day-cell.other-month {
+  opacity: 0.25;
+  cursor: default;
+}
+.day-cell.other-month:hover {
+  transform: none;
+  background: rgba(255, 255, 255, 0.15);
+  border-color: var(--card-border);
+}
+
+/* Today Highlighter */
+.day-cell.today {
+  box-shadow: inset 0 0 0 2px var(--accent);
+  background: rgba(99, 102, 241, 0.05);
+}
+
+/* Mood Indicators on Calendar */
+.day-emoji {
+  font-size: 1.4rem;
+  line-height: 1;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.day-preview-text {
+  font-size: 0.65rem;
+  color: var(--text-muted);
+  max-width: 90%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+/* Day cell background color overlay based on mood */
+.day-cell.has-entry {
+  background: rgba(255, 255, 255, 0.4);
+}
+
+[data-theme="dark"] .day-cell.has-entry {
+  background: rgba(30, 41, 59, 0.4);
+}
+
+/* 6. Summary Dashboard Component */
+.summary-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.summary-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+@media (max-width: 480px) {
+  .stats-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.stat-card {
+  background: var(--card-border);
+  padding: 16px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  gap: 8px;
+}
+
+.stat-value {
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.stat-desc {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+/* Mood Ratio Bar Graph */
+.mood-ratio-container {
+  background: var(--card-border);
+  padding: 18px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.mood-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.mood-bar-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+.mood-bar-label {
+  width: 60px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 500;
+}
+
+.mood-bar-track {
+  flex-grow: 1;
+  height: 8px;
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+[data-theme="dark"] .mood-bar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.mood-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  transition: width 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 0%;
+}
+
+.mood-bar-pct {
+  width: 32px;
+  text-align: right;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+/* 7. Modal Base & Glass Overlay */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(15, 23, 42, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 1000;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.modal-overlay.active {
+  opacity: 1;
+  pointer-events: all;
+}
+
+.modal-box {
+  background: var(--card-bg-solid);
+  border: 1px solid var(--card-border);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+  border-radius: var(--border-radius);
+  width: 100%;
+  max-width: 480px;
+  padding: 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  transform: scale(0.9) translateY(20px);
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  overflow-y: auto;
+  max-height: calc(100vh - 40px);
+}
+
+.modal-overlay.active .modal-box {
+  transform: scale(1) translateY(0);
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+/* Diary Edit Modal - Emoji Picker Grid */
+.emoji-picker-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.picker-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  background: var(--bg-gradient);
+  padding: 12px;
+  border-radius: var(--border-radius-sm);
+  border: 1px solid var(--card-border);
+}
+
+.emoji-item {
+  aspect-ratio: 1;
+  font-size: 1.6rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border-radius: 50%;
+  transition: var(--transition);
+  border: 2px solid transparent;
+}
+
+.emoji-item:hover {
+  background: rgba(255, 255, 255, 0.5);
+  transform: scale(1.15);
+}
+
+.emoji-item.selected {
+  background: var(--card-bg-solid);
+  border-color: var(--accent);
+  box-shadow: var(--shadow);
+  transform: scale(1.12);
+}
+
+/* Custom Emoji Adder Row */
+.custom-emoji-adder {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.input-text {
+  flex-grow: 1;
+  background: var(--bg-gradient);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  padding: 12px 16px;
+  border-radius: var(--border-radius-sm);
+  outline: none;
+  font-size: 0.9rem;
+  transition: var(--transition);
+}
+
+.input-text:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.btn-add-emoji {
+  background: var(--card-border);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  padding: 0 16px;
+  height: 44px;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-add-emoji:hover {
+  background: var(--accent-light);
+  color: var(--accent);
+}
+
+/* Form Area */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.textarea-message {
+  background: var(--bg-gradient);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  padding: 14px;
+  border-radius: var(--border-radius-sm);
+  outline: none;
+  font-size: 0.9rem;
+  resize: none;
+  height: 90px;
+  transition: var(--transition);
+}
+
+.textarea-message:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
+
+.char-counter {
+  align-self: flex-end;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* Modal Action Buttons */
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.modal-actions .btn-delete {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+  padding: 10px 18px;
+  border-radius: var(--border-radius-sm);
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-right: auto; /* Push delete to far left */
+}
+
+.modal-actions .btn-delete:hover {
+  background: var(--danger-light);
+  transform: translateY(-2px);
+}
+
+/* Sync Configuration Modal Specifics */
+.sync-help-text {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+
+.config-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  align-self: flex-start;
+}
+
+.config-status-badge.connected {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+[data-theme="dark"] .config-status-badge.connected {
+  background: #064e3b;
+  color: #a7f3d0;
+}
+
+.config-status-badge.disconnected {
+  background: #f3f4f6;
+  color: #374151;
+}
+
+[data-theme="dark"] .config-status-badge.disconnected {
+  background: #374151;
+  color: #d1d5db;
+}
+
+/* 8. Toast Notification System */
+.toast-container {
+  position: fixed;
+  bottom: calc(24px + var(--safe-area-bottom));
+  left: 50%;
+  transform: translateX(-50%) translateY(100px);
+  background: var(--card-bg-solid);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  padding: 12px 24px;
+  border-radius: 50px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  font-size: 0.85rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  z-index: 2000;
+  transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.4s;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toast-container.active {
+  transform: translateX(-50%) translateY(0);
+  opacity: 1;
+}
+
+/* 9. Keyframes and animations */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes popIn {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.1); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* App Install banner (PWA) */
+.install-banner {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(236, 72, 153, 0.15) 100%);
+  border: 1px dashed var(--accent);
+  padding: 14px 20px;
+  border-radius: var(--border-radius-sm);
+  animation: fadeIn 0.4s ease-out;
+}
+
+.install-text {
+  font-size: 0.85rem;
+  font-weight: 500;
+  color: var(--text-primary);
+}

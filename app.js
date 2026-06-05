@@ -1,0 +1,941 @@
+/* 
+================================================================
+  매일의 나를 기록하는 감정 기록 다이어리 - Core Logic (app.js)
+================================================================
+*/
+
+// 1. Initial State & Configuration
+const DEFAULT_EMOJIS = [
+  // 감정 (Emotions)
+  { char: '😊', label: '기쁨' },
+  { char: '🤩', label: '신남' },
+  { char: '😌', label: '평온' },
+  { char: '😢', label: '슬픔' },
+  { char: '😡', label: '화남' },
+  { char: '😴', label: '피곤' },
+  // 하트 (Hearts)
+  { char: '❤️', label: '빨강하트' },
+  { char: '💚', label: '초록하트' },
+  { char: '💖', label: '반짝하트' },
+  { char: '💜', label: '보라하트' },
+  // 별 & 자연 (Stars & Nature)
+  { char: '⭐', label: '별' },
+  { char: '✨', label: '반짝임' }
+];
+
+let state = {
+  currentUser: {
+    name: '게스트 사용자',
+    email: 'guest_user',
+    picture: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23a855f7%22/><text x=%2250%22 y=%2265%22 font-size=%2250%22 fill=%22%23ffffff%22 text-anchor=%22middle%22>👤</text></svg>'
+  },
+  currentDate: new Date(), // 달력 조회용 날짜
+  diaries: {}, // YYYY-MM-DD -> { emoji: '😊', message: '...' }
+  customEmojis: [], // 사용자가 추가한 이모지 문자열 리스트
+  firebaseConfig: {
+    apiKey: '',
+    projectId: '',
+    appId: '',
+    googleClientId: ''
+  },
+  db: null, // Firebase db 인스턴스
+  selectedEmoji: '', // 모달에서 현재 선택된 이모지
+  activeModalDate: '', // 모달이 띄워진 날짜 (YYYY-MM-DD)
+  deferredInstallPrompt: null // PWA 설치 프롬프트
+};
+
+// 2. DOM Elements
+const elements = {
+  themeToggleBtn: document.getElementById('btn-theme-toggle'),
+  themeIcon: document.getElementById('theme-icon'),
+  syncConfigBtn: document.getElementById('btn-sync-config'),
+  currentMonthYearLabel: document.getElementById('current-month-year-label'),
+  prevMonthBtn: document.getElementById('btn-prev-month'),
+  todayMonthBtn: document.getElementById('btn-today-month'),
+  nextMonthBtn: document.getElementById('btn-next-month'),
+  daysGridContainer: document.getElementById('days-grid-container'),
+  
+  // Modals
+  diaryModal: document.getElementById('diary-modal'),
+  syncModal: document.getElementById('sync-modal'),
+  closeDiaryModalBtn: document.getElementById('btn-close-diary-modal'),
+  closeSyncModalBtn: document.getElementById('btn-close-sync-modal'),
+  closeSyncSettingsBtn: document.getElementById('btn-close-sync-settings'),
+  cancelDiaryBtn: document.getElementById('btn-cancel-diary'),
+  
+  // Diary Modal Form elements
+  diaryModalDateLabel: document.getElementById('diary-modal-date-label'),
+  emojiPickerGrid: document.getElementById('emoji-picker-grid'),
+  inputCustomEmoji: document.getElementById('input-custom-emoji'),
+  btnAddCustomEmoji: document.getElementById('btn-add-custom-emoji'),
+  textareaDiaryMessage: document.getElementById('textarea-diary-message'),
+  charCounterLabel: document.getElementById('char-counter-label'),
+  btnSaveDiary: document.getElementById('btn-save-diary'),
+  btnDeleteDiary: document.getElementById('btn-delete-diary'),
+  
+  // Sync Modal Form elements
+  firebaseApiKey: document.getElementById('firebase-apiKey'),
+  firebaseProjectId: document.getElementById('firebase-projectId'),
+  firebaseAppId: document.getElementById('firebase-appId'),
+  googleClientIdInput: document.getElementById('google-clientId'),
+  btnSaveSyncConfig: document.getElementById('btn-save-sync-config'),
+  btnResetSyncConfig: document.getElementById('btn-reset-sync-config'),
+  syncStatusBadge: document.getElementById('sync-status-badge'),
+  syncStatusIndicatorDot: document.getElementById('sync-status-indicator-dot'),
+  syncStatusText: document.getElementById('sync-status-text'),
+  
+  // Auth Elements
+  authContainer: document.getElementById('auth-container'),
+  profileContainer: document.getElementById('profile-container'),
+  userPhoto: document.getElementById('user-photo'),
+  userNameText: document.getElementById('user-name-text'),
+  btnLogoutBtn: document.getElementById('btn-logout'),
+  
+  // Statistics Elements
+  statRecordRate: document.getElementById('stat-record-rate'),
+  statRecordCount: document.getElementById('stat-record-count'),
+  statMainMood: document.getElementById('stat-main-mood'),
+  moodRatiosList: document.getElementById('mood-ratios-list'),
+  
+  // Toast
+  toastMessage: document.getElementById('toast-message'),
+  toastText: document.getElementById('toast-text'),
+  toastIcon: document.getElementById('toast-icon'),
+  
+  // PWA Install
+  pwaInstallBanner: document.getElementById('pwa-install-banner'),
+  btnPwaInstall: document.getElementById('btn-pwa-install')
+};
+
+// 3. Helper Functions
+function showToast(message, isSuccess = true) {
+  elements.toastText.textContent = message;
+  if (isSuccess) {
+    elements.toastIcon.setAttribute('data-lucide', 'check-circle-2');
+    elements.toastMessage.style.borderColor = 'var(--card-border)';
+  } else {
+    elements.toastIcon.setAttribute('data-lucide', 'alert-circle');
+    elements.toastMessage.style.borderColor = 'var(--danger)';
+  }
+  lucide.createIcons();
+  
+  elements.toastMessage.classList.add('active');
+  setTimeout(() => {
+    elements.toastMessage.classList.remove('active');
+  }, 2500);
+}
+
+// Format date to YYYY-MM-DD in local timezone
+function formatDate(date) {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, '0');
+  const d = String(date.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// Decode JWT token for Google Sign-In
+function decodeJwt(token) {
+  try {
+    const base64Url = token.split('.')[1];
+    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split('')
+        .map((c) => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+        .join('')
+    );
+    return JSON.parse(jsonPayload);
+  } catch (error) {
+    console.error('JWT Decoding failed:', error);
+    return null;
+  }
+}
+
+// 4. Data Storage & Sync (Dual Storage Engine)
+function initFirebase() {
+  if (state.firebaseConfig && state.firebaseConfig.apiKey && state.firebaseConfig.projectId) {
+    try {
+      // If firebase is already initialized, reuse app
+      let app;
+      if (!firebase.apps.length) {
+        app = firebase.initializeApp({
+          apiKey: state.firebaseConfig.apiKey,
+          projectId: state.firebaseConfig.projectId,
+          appId: state.firebaseConfig.appId
+        });
+      } else {
+        app = firebase.app();
+      }
+      
+      state.db = app.firestore();
+      
+      // Update Sync Status UI
+      elements.syncStatusBadge.className = 'config-status-badge connected';
+      elements.syncStatusIndicatorDot.style.background = '#10b981'; // Green
+      elements.syncStatusText.textContent = '클라우드 동기화 켜짐 (Firebase)';
+      return true;
+    } catch (error) {
+      console.error('Firebase Initialization failed:', error);
+      showToast('Firebase 초기화 실패. 설정을 확인해 주세요.', false);
+    }
+  }
+  
+  // Offline Mode indicator
+  elements.syncStatusBadge.className = 'config-status-badge disconnected';
+  elements.syncStatusIndicatorDot.style.background = '#9ca3af'; // Gray
+  elements.syncStatusText.textContent = '로컬 저장소 모드 (오프라인)';
+  state.db = null;
+  return false;
+}
+
+// Save a diary entry
+async function saveDiaryEntry(dateStr, emoji, message) {
+  const email = state.currentUser.email;
+  const entry = {
+    emoji: emoji,
+    message: message,
+    updatedAt: new Date().toISOString()
+  };
+  
+  // 1. Save locally
+  state.diaries[dateStr] = entry;
+  localStorage.setItem(`diaries_${email}`, JSON.stringify(state.diaries));
+  
+  // 2. Sync to Firebase if available
+  if (state.db) {
+    try {
+      const docId = `${email}_${dateStr}`;
+      await state.db.collection('users_diaries').doc(docId).set({
+        email: email,
+        date: dateStr,
+        emoji: emoji,
+        message: message,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+      console.log('Firebase synced.');
+    } catch (error) {
+      console.error('Firebase sync failed:', error);
+      showToast('로컬에 저장됨 (클라우드 동기화 실패)', false);
+      return;
+    }
+  }
+  
+  showToast('일기가 등록되었습니다.');
+}
+
+// Delete a diary entry
+async function deleteDiaryEntry(dateStr) {
+  const email = state.currentUser.email;
+  
+  // 1. Delete locally
+  delete state.diaries[dateStr];
+  localStorage.setItem(`diaries_${email}`, JSON.stringify(state.diaries));
+  
+  // 2. Delete from Firebase if available
+  if (state.db) {
+    try {
+      const docId = `${email}_${dateStr}`;
+      await state.db.collection('users_diaries').doc(docId).delete();
+      console.log('Firebase deleted.');
+    } catch (error) {
+      console.error('Firebase delete failed:', error);
+      showToast('로컬에서 삭제됨 (클라우드 동기화 실패)', false);
+      return;
+    }
+  }
+  
+  showToast('일기가 삭제되었습니다.');
+}
+
+// Load all diary entries for current user
+async function loadDiaryEntries() {
+  const email = state.currentUser.email;
+  
+  // Default load from LocalStorage first (offline-first)
+  const localData = localStorage.getItem(`diaries_${email}`);
+  state.diaries = localData ? JSON.parse(localData) : {};
+  
+  // If Firebase configured, fetch and sync
+  if (state.db) {
+    try {
+      showToast('클라우드 데이터를 불러오는 중...');
+      const snapshot = await state.db.collection('users_diaries')
+        .where('email', '==', email)
+        .get();
+        
+      const cloudDiaries = {};
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        cloudDiaries[data.date] = {
+          emoji: data.emoji,
+          message: data.message,
+          updatedAt: data.updatedAt ? data.updatedAt.toDate().toISOString() : new Date().toISOString()
+        };
+      });
+      
+      // Merge Strategy: Take newest update or simple replace local with cloud
+      // For simplicity and multi-device sync, we replace local with cloud
+      state.diaries = { ...state.diaries, ...cloudDiaries };
+      localStorage.setItem(`diaries_${email}`, JSON.stringify(state.diaries));
+      showToast('데이터 동기화 완료!');
+    } catch (error) {
+      console.error('Error fetching from Firebase:', error);
+      showToast('클라우드 데이터를 가져오지 못했습니다. 로컬 데이터를 사용합니다.', false);
+    }
+  }
+  
+  renderCalendar();
+  renderStatistics();
+}
+
+// 5. Auth Controller
+function handleLoginSuccess(userPayload) {
+  state.currentUser = {
+    name: userPayload.name,
+    email: userPayload.email,
+    picture: userPayload.picture
+  };
+  
+  // Update Profile UI
+  elements.userNameText.textContent = state.currentUser.name;
+  elements.userPhoto.src = state.currentUser.picture;
+  elements.authContainer.style.display = 'none';
+  elements.profileContainer.style.display = 'flex';
+  
+  showToast(`${state.currentUser.name}님, 반갑습니다!`);
+  
+  // Load user data
+  loadDiaryEntries();
+}
+
+function handleLogout() {
+  state.currentUser = {
+    name: '게스트 사용자',
+    email: 'guest_user',
+    picture: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23a855f7%22/><text x=%2250%22 y=%2265%22 font-size=%2250%22 fill=%22%23ffffff%22 text-anchor=%22middle%22>👤</text></svg>'
+  };
+  
+  elements.authContainer.style.display = 'flex';
+  elements.profileContainer.style.display = 'none';
+  
+  showToast('로그아웃 되었습니다.');
+  
+  // Load guest data
+  loadDiaryEntries();
+  
+  // Re-render Google button
+  renderGoogleButton();
+}
+
+// Initialize Google Identity Services Sign-In Button or render a beautiful Mock button
+function renderGoogleButton() {
+  // If no clientId is configured, do not load Google popups (prevents Google 404 page)
+  if (!state.firebaseConfig.googleClientId) {
+    renderMockGoogleButton();
+    return;
+  }
+  
+  if (typeof google === 'undefined') {
+    console.warn('Google Identity Services SDK not loaded yet.');
+    renderMockGoogleButton();
+    return;
+  }
+  
+  const clientID = state.firebaseConfig.googleClientId;
+  
+  try {
+    google.accounts.id.initialize({
+      client_id: clientID,
+      callback: (response) => {
+        const payload = decodeJwt(response.credential);
+        if (payload) {
+          handleLoginSuccess(payload);
+        } else {
+          showToast('구글 로그인 실패', false);
+        }
+      }
+    });
+    
+    elements.authContainer.innerHTML = '<div id="google-signin-btn"></div>';
+    google.accounts.id.renderButton(
+      document.getElementById('google-signin-btn'),
+      { 
+        theme: document.documentElement.getAttribute('data-theme') === 'dark' ? 'filled_black' : 'outline', 
+        size: 'medium', 
+        shape: 'pill',
+        text: 'signin_with'
+      }
+    );
+  } catch (error) {
+    console.error('Google button render failed:', error);
+    renderMockGoogleButton();
+  }
+}
+
+// Render a Google-styled button that performs mock login for instant testing
+function renderMockGoogleButton() {
+  const mockAuthBtn = document.createElement('button');
+  mockAuthBtn.className = 'btn-primary';
+  mockAuthBtn.style.background = '#ffffff';
+  mockAuthBtn.style.color = '#1f1f1f';
+  mockAuthBtn.style.border = '1px solid #747775';
+  mockAuthBtn.style.display = 'flex';
+  mockAuthBtn.style.alignItems = 'center';
+  mockAuthBtn.style.gap = '8px';
+  mockAuthBtn.style.fontWeight = '500';
+  mockAuthBtn.style.fontFamily = "'Outfit', sans-serif";
+  mockAuthBtn.style.height = '38px';
+  mockAuthBtn.style.padding = '0 14px';
+  mockAuthBtn.style.borderRadius = '20px';
+  mockAuthBtn.style.fontSize = '13.5px';
+  mockAuthBtn.style.cursor = 'pointer';
+  mockAuthBtn.style.transition = 'all 0.2s';
+  mockAuthBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+  
+  mockAuthBtn.onmouseover = () => {
+    mockAuthBtn.style.background = '#f7f8f9';
+    mockAuthBtn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.15)';
+  };
+  mockAuthBtn.onmouseout = () => {
+    mockAuthBtn.style.background = '#ffffff';
+    mockAuthBtn.style.boxShadow = '0 1px 2px rgba(0,0,0,0.1)';
+  };
+
+  mockAuthBtn.innerHTML = `
+    <svg version="1.1" xmlns="http://www.w3.org/2000/svg" width="16px" height="16px" viewBox="0 0 48 48" style="display:block;">
+      <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"></path>
+      <path fill="#4285F4" d="M46.5 24c0-1.61-.15-3.16-.42-4.69H24v8.89h12.66c-.55 2.89-2.2 5.34-4.66 6.99l7.26 5.63C43.51 36.56 46.5 30.82 46.5 24z"></path>
+      <path fill="#FBBC05" d="M10.54 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.98-6.19z"></path>
+      <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.26-5.63c-2.03 1.37-4.63 2.19-7.26 2.19-6.26 0-11.57-4.22-13.46-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"></path>
+    </svg>
+    <span>Google 계정으로 시작 (체험용)</span>
+  `;
+  
+  mockAuthBtn.onclick = () => {
+    handleLoginSuccess({
+      name: '체험 사용자',
+      email: 'guest_test_user@gmail.com',
+      picture: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%236366f1%22/><text x=%2250%22 y=%2265%22 font-size=%2250%22 fill=%22%23ffffff%22 text-anchor=%22middle%22>💖</text></svg>'
+    });
+    showToast('체험용 로그인 완료! 다기기 동기화는 구름 아이콘 클릭 후 설정을 채워주세요.');
+  };
+  
+  elements.authContainer.innerHTML = '';
+  elements.authContainer.appendChild(mockAuthBtn);
+}
+
+// 6. View - Calendar Renderer
+function renderCalendar() {
+  const date = state.currentDate;
+  const year = date.getFullYear();
+  const month = date.getMonth();
+  
+  // Set month label
+  elements.currentMonthYearLabel.textContent = `${year}년 ${month + 1}월`;
+  
+  elements.daysGridContainer.innerHTML = '';
+  
+  // First day of current month (0: Sunday, 1: Monday, ...)
+  const firstDayIndex = new Date(year, month, 1).getDay();
+  
+  // Last date of current month
+  const lastDate = new Date(year, month + 1, 0).getDate();
+  
+  // Last date of previous month
+  const prevLastDate = new Date(year, month, 0).getDate();
+  
+  // Total cells in calendar grid (standard 6 weeks = 42 cells)
+  const totalCells = 42;
+  
+  // Render previous month overlap days
+  for (let i = firstDayIndex; i > 0; i--) {
+    const dayNum = prevLastDate - i + 1;
+    const cell = document.createElement('div');
+    cell.className = 'day-cell other-month';
+    cell.innerHTML = `<span class="day-number">${dayNum}</span>`;
+    elements.daysGridContainer.appendChild(cell);
+  }
+  
+  // Render current month days
+  const today = new Date();
+  for (let day = 1; day <= lastDate; day++) {
+    const cell = document.createElement('div');
+    const weekdayIdx = (firstDayIndex + day - 1) % 7;
+    
+    let cellClass = 'day-cell';
+    if (weekdayIdx === 0) cellClass += ' sunday';
+    if (weekdayIdx === 6) cellClass += ' saturday';
+    
+    const dateStr = formatDate(new Date(year, month, day));
+    
+    // Check if it's today
+    if (today.getFullYear() === year && today.getMonth() === month && today.getDate() === day) {
+      cellClass += ' today';
+    }
+    
+    // Check if there is an entry
+    const entry = state.diaries[dateStr];
+    if (entry) {
+      cellClass += ' has-entry';
+    }
+    
+    cell.className = cellClass;
+    cell.setAttribute('data-date', dateStr);
+    
+    let cellContent = `<span class="day-number">${day}</span>`;
+    if (entry) {
+      cellContent += `<span class="day-emoji">${entry.emoji}</span>`;
+      if (entry.message) {
+        cellContent += `<span class="day-preview-text">${entry.message}</span>`;
+      }
+    } else {
+      cellContent += `<div style="flex-grow: 1;"></div>`; // spacer
+    }
+    
+    cell.innerHTML = cellContent;
+    
+    // Click Event
+    cell.onclick = () => openDiaryModal(dateStr);
+    
+    elements.daysGridContainer.appendChild(cell);
+  }
+  
+  // Render next month overlap days
+  const remainingCells = totalCells - (firstDayIndex + lastDate);
+  for (let day = 1; day <= remainingCells; day++) {
+    const cell = document.createElement('div');
+    cell.className = 'day-cell other-month';
+    cell.innerHTML = `<span class="day-number">${day}</span>`;
+    elements.daysGridContainer.appendChild(cell);
+  }
+}
+
+// 7. View - Statistics Renderer
+function renderStatistics() {
+  const currentYear = state.currentDate.getFullYear();
+  const currentMonth = state.currentDate.getMonth();
+  
+  // Filter diaries belonging to current month
+  const monthlyEntries = Object.keys(state.diaries)
+    .filter(dateStr => {
+      const d = new Date(dateStr);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    })
+    .map(dateStr => state.diaries[dateStr]);
+    
+  const totalDaysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate();
+  const recordCount = monthlyEntries.length;
+  
+  // Calculate Completion Rate
+  const recordRate = totalDaysInMonth > 0 ? Math.round((recordCount / totalDaysInMonth) * 100) : 0;
+  elements.statRecordRate.textContent = `${recordRate}%`;
+  elements.statRecordCount.textContent = `작성일 수 (${recordCount}/${totalDaysInMonth}일)`;
+  
+  // Calculate Mood Statistics
+  if (recordCount === 0) {
+    elements.statMainMood.textContent = '기록 없음';
+    elements.moodRatiosList.innerHTML = '<p class="sync-help-text" style="text-align: center; padding: 12px 0;">이번 달에 작성된 일기가 없습니다. 날짜를 클릭해 오늘의 기분을 남겨보세요!</p>';
+    return;
+  }
+  
+  const moodCounts = {};
+  monthlyEntries.forEach(entry => {
+    moodCounts[entry.emoji] = (moodCounts[entry.emoji] || 0) + 1;
+  });
+  
+  // Sort moods by frequency
+  const sortedMoods = Object.keys(moodCounts)
+    .map(emoji => {
+      // Find label if available
+      const preset = DEFAULT_EMOJIS.find(e => e.char === emoji);
+      const label = preset ? preset.label : '기타';
+      return {
+        emoji: emoji,
+        label: label,
+        count: moodCounts[emoji],
+        percentage: Math.round((moodCounts[emoji] / recordCount) * 100)
+      };
+    })
+    .sort((a, b) => b.count - a.count);
+    
+  // Primary (Predominant) Mood
+  const topMood = sortedMoods[0];
+  elements.statMainMood.textContent = `${topMood.emoji} ${topMood.label}`;
+  
+  // Render progress bars
+  elements.moodRatiosList.innerHTML = '';
+  const wrapper = document.createElement('div');
+  wrapper.className = 'mood-bar-wrapper';
+  
+  sortedMoods.forEach(mood => {
+    const row = document.createElement('div');
+    row.className = 'mood-bar-row';
+    
+    // Choose custom color depending on emoji type (defaults to accent color)
+    let fillBg = 'var(--accent)';
+    const preset = DEFAULT_EMOJIS.find(e => e.char === mood.emoji);
+    if (preset) {
+      if (preset.label === '기쁨') fillBg = 'var(--color-happy)';
+      else if (preset.label === '신남') fillBg = 'var(--color-excited)';
+      else if (preset.label === '평온') fillBg = 'var(--color-calm)';
+      else if (preset.label === '슬픔') fillBg = 'var(--color-sad)';
+      else if (preset.label === '화남') fillBg = 'var(--color-angry)';
+      else if (preset.label === '피곤') fillBg = 'var(--color-tired)';
+      else if (preset.label.includes('하트')) fillBg = '#ec4899'; // Pink for hearts
+      else if (preset.label === '별' || preset.label === '반짝임') fillBg = '#f59e0b'; // Gold
+    }
+    
+    row.innerHTML = `
+      <span class="mood-bar-label">${mood.emoji} <span style="font-size:0.75rem; color:var(--text-muted);">${mood.count}회</span></span>
+      <div class="mood-bar-track">
+        <div class="mood-bar-fill" style="width: ${mood.percentage}%; background: ${fillBg};"></div>
+      </div>
+      <span class="mood-bar-pct">${mood.percentage}%</span>
+    `;
+    wrapper.appendChild(row);
+  });
+  
+  elements.moodRatiosList.appendChild(wrapper);
+}
+
+// 8. Diary Modal Actions
+function openDiaryModal(dateStr) {
+  state.activeModalDate = dateStr;
+  state.selectedEmoji = '';
+  
+  const [y, m, d] = dateStr.split('-');
+  elements.diaryModalDateLabel.textContent = `${parseInt(m)}월 ${parseInt(d)}일의 기록`;
+  
+  // Populate form with existing data
+  const entry = state.diaries[dateStr];
+  if (entry) {
+    state.selectedEmoji = entry.emoji;
+    elements.textareaDiaryMessage.value = entry.message || '';
+    elements.charCounterLabel.textContent = `${elements.textareaDiaryMessage.value.length}/100`;
+    elements.btnDeleteDiary.style.display = 'block';
+  } else {
+    elements.textareaDiaryMessage.value = '';
+    elements.charCounterLabel.textContent = '0/100';
+    elements.btnDeleteDiary.style.display = 'none';
+  }
+  
+  renderEmojiPicker();
+  
+  // Show Modal
+  elements.diaryModal.classList.add('active');
+}
+
+function closeDiaryModal() {
+  elements.diaryModal.classList.remove('active');
+}
+
+function renderEmojiPicker() {
+  elements.emojiPickerGrid.innerHTML = '';
+  
+  // Built-in preset emojis
+  const builtInEmojis = DEFAULT_EMOJIS.map(e => e.char);
+  
+  // Merge built-in presets with user's custom emojis
+  const allEmojis = [...new Set([...builtInEmojis, ...state.customEmojis])];
+  
+  allEmojis.forEach(emoji => {
+    const item = document.createElement('div');
+    item.className = `emoji-item ${state.selectedEmoji === emoji ? 'selected' : ''}`;
+    item.textContent = emoji;
+    
+    item.onclick = () => {
+      // Toggle selection
+      const previousSelected = elements.emojiPickerGrid.querySelector('.emoji-item.selected');
+      if (previousSelected) previousSelected.classList.remove('selected');
+      
+      state.selectedEmoji = emoji;
+      item.classList.add('selected');
+    };
+    
+    elements.emojiPickerGrid.appendChild(item);
+  });
+}
+
+function handleAddCustomEmoji() {
+  const emojiInput = elements.inputCustomEmoji.value.trim();
+  
+  // Validate emoji input (check if it is a single emoji character)
+  if (!emojiInput) {
+    showToast('이모지를 입력해 주세요.', false);
+    return;
+  }
+  
+  // Simple check for string length. Emojis can have lengths > 1 (due to surrogate pairs, zero width joiners, etc.),
+  // but let's limit to 4 characters to allow complex compound emojis but block normal words.
+  if (emojiInput.length > 6) {
+    showToast('올바른 이모지 1개를 입력해 주세요.', false);
+    return;
+  }
+  
+  if (state.customEmojis.includes(emojiInput) || DEFAULT_EMOJIS.some(e => e.char === emojiInput)) {
+    showToast('이미 목록에 존재하는 이모지입니다.', false);
+    elements.inputCustomEmoji.value = '';
+    return;
+  }
+  
+  state.customEmojis.push(emojiInput);
+  localStorage.setItem('custom_emojis', JSON.stringify(state.customEmojis));
+  
+  // Re-render picker
+  renderEmojiPicker();
+  elements.inputCustomEmoji.value = '';
+  showToast('이모지가 추가되었습니다!');
+}
+
+async function handleSaveDiary() {
+  if (!state.selectedEmoji) {
+    showToast('이모지를 선택해 주세요.', false);
+    return;
+  }
+  
+  const message = elements.textareaDiaryMessage.value.trim();
+  await saveDiaryEntry(state.activeModalDate, state.selectedEmoji, message);
+  
+  closeDiaryModal();
+  renderCalendar();
+  renderStatistics();
+}
+
+async function handleDeleteDiary() {
+  if (confirm('이 기록을 삭제하시겠습니까?')) {
+    await deleteDiaryEntry(state.activeModalDate);
+    closeDiaryModal();
+    renderCalendar();
+    renderStatistics();
+  }
+}
+
+// 9. Sync Settings Modal Actions
+function openSyncModal() {
+  elements.firebaseApiKey.value = state.firebaseConfig.apiKey || '';
+  elements.firebaseProjectId.value = state.firebaseConfig.projectId || '';
+  elements.firebaseAppId.value = state.firebaseConfig.appId || '';
+  elements.googleClientIdInput.value = state.firebaseConfig.googleClientId || '';
+  
+  elements.syncModal.classList.add('active');
+}
+
+function closeSyncModal() {
+  elements.syncModal.classList.remove('active');
+}
+
+function handleSaveSyncConfig() {
+  const apiKey = elements.firebaseApiKey.value.trim();
+  const projectId = elements.firebaseProjectId.value.trim();
+  const appId = elements.firebaseAppId.value.trim();
+  const googleClientId = elements.googleClientIdInput.value.trim();
+  
+  state.firebaseConfig = {
+    apiKey: apiKey,
+    projectId: projectId,
+    appId: appId,
+    googleClientId: googleClientId
+  };
+  
+  localStorage.setItem('firebase_config', JSON.stringify(state.firebaseConfig));
+  
+  closeSyncModal();
+  
+  // Re-initialize Database
+  const isFirebaseActive = initFirebase();
+  if (isFirebaseActive) {
+    showToast('클라우드 연동 정보가 설정되었습니다.');
+  } else {
+    showToast('로컬 오프라인 모드로 변경되었습니다.');
+  }
+  
+  // Re-render Google signin button with new clientId
+  renderGoogleButton();
+  
+  // Reload data
+  loadDiaryEntries();
+}
+
+function handleResetSyncConfig() {
+  if (confirm('모든 동기화 및 구글 연동 설정을 초기화하시겠습니까?')) {
+    state.firebaseConfig = { apiKey: '', projectId: '', appId: '', googleClientId: '' };
+    localStorage.removeItem('firebase_config');
+    
+    elements.firebaseApiKey.value = '';
+    elements.firebaseProjectId.value = '';
+    elements.firebaseAppId.value = '';
+    elements.googleClientIdInput.value = '';
+    
+    initFirebase();
+    renderGoogleButton();
+    closeSyncModal();
+    showToast('설정이 초기화되었습니다.');
+    
+    loadDiaryEntries();
+  }
+}
+
+// 10. Theme Control
+function initTheme() {
+  const savedTheme = localStorage.getItem('theme') || 'light';
+  document.documentElement.setAttribute('data-theme', savedTheme);
+  updateThemeUI(savedTheme);
+}
+
+function updateThemeUI(theme) {
+  const metaThemeColor = document.getElementById('theme-color-meta');
+  if (theme === 'dark') {
+    elements.themeIcon.setAttribute('data-lucide', 'moon');
+    if (metaThemeColor) metaThemeColor.setAttribute('content', '#09090b');
+  } else {
+    elements.themeIcon.setAttribute('data-lucide', 'sun');
+    if (metaThemeColor) metaThemeColor.setAttribute('content', '#ffffff');
+  }
+  lucide.createIcons();
+  
+  // Redraw google button theme
+  renderGoogleButton();
+}
+
+function toggleTheme() {
+  const currentTheme = document.documentElement.getAttribute('data-theme');
+  const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', newTheme);
+  localStorage.setItem('theme', newTheme);
+  updateThemeUI(newTheme);
+}
+
+// 11. PWA Service Worker Registration & Installation prompt
+function registerServiceWorker() {
+  if ('serviceWorker' in navigator) {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/sw.js')
+        .then((reg) => {
+          console.log('ServiceWorker registered successfully with scope: ', reg.scope);
+        })
+        .catch((err) => {
+          console.warn('ServiceWorker registration failed: ', err);
+        });
+    });
+  }
+  
+  // Capture installation promotion prompt
+  window.addEventListener('beforeinstallprompt', (e) => {
+    // Prevent default browser banner
+    e.preventDefault();
+    // Cache event
+    state.deferredInstallPrompt = e;
+    // Show custom banner
+    elements.pwaInstallBanner.style.display = 'flex';
+  });
+  
+  elements.btnPwaInstall.addEventListener('click', async () => {
+    if (state.deferredInstallPrompt) {
+      // Show prompt
+      state.deferredInstallPrompt.prompt();
+      // Wait response
+      const { outcome } = await state.deferredInstallPrompt.userChoice;
+      console.log(`User response to installation: ${outcome}`);
+      // Reset
+      state.deferredInstallPrompt = null;
+      elements.pwaInstallBanner.style.display = 'none';
+    }
+  });
+  
+  window.addEventListener('appinstalled', (evt) => {
+    console.log('App was successfully installed to home screen!');
+    elements.pwaInstallBanner.style.display = 'none';
+    showToast('다이어리 앱이 성공적으로 설치되었습니다!');
+  });
+}
+
+// 12. App Event Listeners & Bootstrapping
+function bindEventListeners() {
+  // Theme Toggle
+  elements.themeToggleBtn.addEventListener('click', toggleTheme);
+  
+  // Sync Modal Trigger
+  elements.syncConfigBtn.addEventListener('click', openSyncModal);
+  elements.closeSyncModalBtn.addEventListener('click', closeSyncModal);
+  elements.closeSyncSettingsBtn.addEventListener('click', closeSyncModal);
+  elements.btnSaveSyncConfig.addEventListener('click', handleSaveSyncConfig);
+  elements.btnResetSyncConfig.addEventListener('click', handleResetSyncConfig);
+  
+  // Calendar Nav
+  elements.prevMonthBtn.addEventListener('click', () => {
+    state.currentDate.setMonth(state.currentDate.getMonth() - 1);
+    renderCalendar();
+    renderStatistics();
+  });
+  elements.nextMonthBtn.addEventListener('click', () => {
+    state.currentDate.setMonth(state.currentDate.getMonth() + 1);
+    renderCalendar();
+    renderStatistics();
+  });
+  elements.todayMonthBtn.addEventListener('click', () => {
+    state.currentDate = new Date();
+    renderCalendar();
+    renderStatistics();
+  });
+  
+  // Diary Modal Form Actions
+  elements.closeDiaryModalBtn.addEventListener('click', closeDiaryModal);
+  elements.cancelDiaryBtn.addEventListener('click', closeDiaryModal);
+  elements.btnSaveDiary.addEventListener('click', handleSaveDiary);
+  elements.btnDeleteDiary.addEventListener('click', handleDeleteDiary);
+  elements.btnAddCustomEmoji.addEventListener('click', handleAddCustomEmoji);
+  
+  // Char Counter on message textarea
+  elements.textareaDiaryMessage.addEventListener('input', () => {
+    const len = elements.textareaDiaryMessage.value.length;
+    elements.charCounterLabel.textContent = `${len}/100`;
+  });
+  
+  // Custom Emoji Adder Enter Key
+  elements.inputCustomEmoji.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      handleAddCustomEmoji();
+    }
+  });
+  
+  // Auth Logout
+  elements.btnLogoutBtn.addEventListener('click', handleLogout);
+}
+
+// App Bootstrapping
+async function bootstrapApp() {
+  // 1. Init Theme
+  initTheme();
+  
+  // 2. Load configurations
+  const savedConfig = localStorage.getItem('firebase_config');
+  if (savedConfig) {
+    state.firebaseConfig = JSON.parse(savedConfig);
+  }
+  
+  const savedCustomEmojis = localStorage.getItem('custom_emojis');
+  state.customEmojis = savedCustomEmojis ? JSON.parse(savedCustomEmojis) : [];
+  
+  // 3. Initialize Firebase Database Sync (if credentials stored)
+  initFirebase();
+  
+  // 4. Set up Auth UI & Google GSI script
+  renderGoogleButton();
+  
+  // 5. Load diaries (localStorage fallback works instantly)
+  await loadDiaryEntries();
+  
+  // 6. Bind UI event listeners
+  bindEventListeners();
+  
+  // 7. Register PWA Service worker
+  registerServiceWorker();
+  
+  // 8. Render lucide icons
+  lucide.createIcons();
+  
+  console.log('Mood Diary app initialized successfully.');
+}
+
+// Start Application on DOM Content Loaded
+document.addEventListener('DOMContentLoaded', bootstrapApp);
