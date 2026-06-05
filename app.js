@@ -23,6 +23,13 @@ const DEFAULT_EMOJIS = [
   { char: '✨', label: '반짝임' }
 ];
 
+const FIREBASE_CONFIG = {
+  apiKey: 'AIzaSyD0z1UjVlidMtA7c7UdgJUjOmps3GcomMI',
+  projectId: 'mood-diary-4f2e9',
+  appId: '1:248808216631:web:03824a11cc22924795c7b2',
+  googleClientId: '248808216631-epmbeir2ckgllb5vd6u29o33p4joq0vc.apps.googleusercontent.com'
+};
+
 let state = {
   currentUser: {
     name: '게스트 사용자',
@@ -32,12 +39,7 @@ let state = {
   currentDate: new Date(), // 달력 조회용 날짜
   diaries: {}, // YYYY-MM-DD -> { emoji: '😊', message: '...' }
   customEmojis: [], // 사용자가 추가한 이모지 문자열 리스트
-  firebaseConfig: {
-    apiKey: '',
-    projectId: '',
-    appId: '',
-    googleClientId: ''
-  },
+
   db: null, // Firebase db 인스턴스
   selectedEmoji: '', // 모달에서 현재 선택된 이모지
   activeModalDate: '', // 모달이 띄워진 날짜 (YYYY-MM-DD)
@@ -57,10 +59,7 @@ const elements = {
   
   // Modals
   diaryModal: document.getElementById('diary-modal'),
-  syncModal: document.getElementById('sync-modal'),
   closeDiaryModalBtn: document.getElementById('btn-close-diary-modal'),
-  closeSyncModalBtn: document.getElementById('btn-close-sync-modal'),
-  closeSyncSettingsBtn: document.getElementById('btn-close-sync-settings'),
   cancelDiaryBtn: document.getElementById('btn-cancel-diary'),
   
   // Diary Modal Form elements
@@ -73,17 +72,7 @@ const elements = {
   btnSaveDiary: document.getElementById('btn-save-diary'),
   btnDeleteDiary: document.getElementById('btn-delete-diary'),
   
-  // Sync Modal Form elements
-  firebaseApiKey: document.getElementById('firebase-apiKey'),
-  firebaseProjectId: document.getElementById('firebase-projectId'),
-  firebaseAppId: document.getElementById('firebase-appId'),
-  googleClientIdInput: document.getElementById('google-clientId'),
-  btnSaveSyncConfig: document.getElementById('btn-save-sync-config'),
-  btnResetSyncConfig: document.getElementById('btn-reset-sync-config'),
-  syncStatusBadge: document.getElementById('sync-status-badge'),
-  syncStatusIndicatorDot: document.getElementById('sync-status-indicator-dot'),
-  syncStatusText: document.getElementById('sync-status-text'),
-  
+
   // Auth Elements
   authContainer: document.getElementById('auth-container'),
   profileContainer: document.getElementById('profile-container'),
@@ -165,37 +154,28 @@ function decodeJwt(token) {
 
 // 4. Data Storage & Sync (Dual Storage Engine)
 function initFirebase() {
-  if (state.firebaseConfig && state.firebaseConfig.apiKey && state.firebaseConfig.projectId) {
+  if (FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId && FIREBASE_CONFIG.apiKey !== 'YOUR_API_KEY_HERE') {
     try {
       // If firebase is already initialized, reuse app
       let app;
       if (!firebase.apps.length) {
         app = firebase.initializeApp({
-          apiKey: state.firebaseConfig.apiKey,
-          projectId: state.firebaseConfig.projectId,
-          appId: state.firebaseConfig.appId
+          apiKey: FIREBASE_CONFIG.apiKey,
+          projectId: FIREBASE_CONFIG.projectId,
+          appId: FIREBASE_CONFIG.appId
         });
       } else {
         app = firebase.app();
       }
       
       state.db = app.firestore();
-      
-      // Update Sync Status UI
-      elements.syncStatusBadge.className = 'config-status-badge connected';
-      elements.syncStatusIndicatorDot.style.background = '#10b981'; // Green
-      elements.syncStatusText.textContent = '클라우드 동기화 켜짐 (Firebase)';
+      console.log('Firebase connected.');
       return true;
     } catch (error) {
       console.error('Firebase Initialization failed:', error);
-      showToast('Firebase 초기화 실패. 설정을 확인해 주세요.', false);
     }
   }
   
-  // Offline Mode indicator
-  elements.syncStatusBadge.className = 'config-status-badge disconnected';
-  elements.syncStatusIndicatorDot.style.background = '#9ca3af'; // Gray
-  elements.syncStatusText.textContent = '로컬 저장소 모드 (오프라인)';
   state.db = null;
   return false;
 }
@@ -342,7 +322,7 @@ function handleLogout() {
 // Initialize Google Identity Services Sign-In Button or render a beautiful Mock button
 function renderGoogleButton() {
   // If no clientId is configured, do not load Google popups (prevents Google 404 page)
-  if (!state.firebaseConfig.googleClientId) {
+  if (!FIREBASE_CONFIG.googleClientId || FIREBASE_CONFIG.googleClientId === 'YOUR_GOOGLE_CLIENT_ID_HERE') {
     renderMockGoogleButton();
     return;
   }
@@ -353,7 +333,7 @@ function renderGoogleButton() {
     return;
   }
   
-  const clientID = state.firebaseConfig.googleClientId;
+  const clientID = FIREBASE_CONFIG.googleClientId;
   
   try {
     google.accounts.id.initialize({
@@ -722,71 +702,6 @@ async function handleDeleteDiary() {
   }
 }
 
-// 9. Sync Settings Modal Actions
-function openSyncModal() {
-  elements.firebaseApiKey.value = state.firebaseConfig.apiKey || '';
-  elements.firebaseProjectId.value = state.firebaseConfig.projectId || '';
-  elements.firebaseAppId.value = state.firebaseConfig.appId || '';
-  elements.googleClientIdInput.value = state.firebaseConfig.googleClientId || '';
-  
-  elements.syncModal.classList.add('active');
-}
-
-function closeSyncModal() {
-  elements.syncModal.classList.remove('active');
-}
-
-function handleSaveSyncConfig() {
-  const apiKey = elements.firebaseApiKey.value.trim();
-  const projectId = elements.firebaseProjectId.value.trim();
-  const appId = elements.firebaseAppId.value.trim();
-  const googleClientId = elements.googleClientIdInput.value.trim();
-  
-  state.firebaseConfig = {
-    apiKey: apiKey,
-    projectId: projectId,
-    appId: appId,
-    googleClientId: googleClientId
-  };
-  
-  localStorage.setItem('firebase_config', JSON.stringify(state.firebaseConfig));
-  
-  closeSyncModal();
-  
-  // Re-initialize Database
-  const isFirebaseActive = initFirebase();
-  if (isFirebaseActive) {
-    showToast('클라우드 연동 정보가 설정되었습니다.');
-  } else {
-    showToast('로컬 오프라인 모드로 변경되었습니다.');
-  }
-  
-  // Re-render Google signin button with new clientId
-  renderGoogleButton();
-  
-  // Reload data
-  loadDiaryEntries();
-}
-
-function handleResetSyncConfig() {
-  if (confirm('모든 동기화 및 구글 연동 설정을 초기화하시겠습니까?')) {
-    state.firebaseConfig = { apiKey: '', projectId: '', appId: '', googleClientId: '' };
-    localStorage.removeItem('firebase_config');
-    
-    elements.firebaseApiKey.value = '';
-    elements.firebaseProjectId.value = '';
-    elements.firebaseAppId.value = '';
-    elements.googleClientIdInput.value = '';
-    
-    initFirebase();
-    renderGoogleButton();
-    closeSyncModal();
-    showToast('설정이 초기화되었습니다.');
-    
-    loadDiaryEntries();
-  }
-}
-
 // 10. Theme Control
 function initTheme() {
   const savedTheme = localStorage.getItem('theme') || 'light';
@@ -866,13 +781,6 @@ function bindEventListeners() {
   // Theme Toggle
   elements.themeToggleBtn.addEventListener('click', toggleTheme);
   
-  // Sync Modal Trigger
-  elements.syncConfigBtn.addEventListener('click', openSyncModal);
-  elements.closeSyncModalBtn.addEventListener('click', closeSyncModal);
-  elements.closeSyncSettingsBtn.addEventListener('click', closeSyncModal);
-  elements.btnSaveSyncConfig.addEventListener('click', handleSaveSyncConfig);
-  elements.btnResetSyncConfig.addEventListener('click', handleResetSyncConfig);
-  
   // Calendar Nav
   elements.prevMonthBtn.addEventListener('click', () => {
     state.currentDate.setMonth(state.currentDate.getMonth() - 1);
@@ -920,11 +828,6 @@ async function bootstrapApp() {
   initTheme();
   
   // 2. Load configurations
-  const savedConfig = localStorage.getItem('firebase_config');
-  if (savedConfig) {
-    state.firebaseConfig = JSON.parse(savedConfig);
-  }
-  
   const savedCustomEmojis = localStorage.getItem('custom_emojis');
   state.customEmojis = savedCustomEmojis ? JSON.parse(savedCustomEmojis) : [];
   

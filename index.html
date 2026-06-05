@@ -45,11 +45,6 @@
           <span class="brand-subtitle">감정 기록 다이어리</span>
         </div>
         <div class="actions-section">
-          <!-- Firebase Sync Config button -->
-          <button class="btn-icon" id="btn-sync-config" title="동기화 설정">
-            <i data-lucide="cloud-lightning"></i>
-          </button>
-          
           <!-- Theme Toggle button -->
           <button class="btn-icon" id="btn-theme-toggle" title="화면 테마 변경">
             <i data-lucide="sun" id="theme-icon"></i>
@@ -187,55 +182,7 @@
       </div>
     </div>
 
-    <!-- Sync / Firebase Cloud Configuration Modal -->
-    <div class="modal-overlay" id="sync-modal">
-      <div class="modal-box">
-        <div class="modal-header">
-          <h3 class="modal-title">클라우드 동기화 설정</h3>
-          <button class="btn-icon" id="btn-close-sync-modal" style="width: 32px; height: 32px;">
-            <i data-lucide="x" style="width: 16px; height: 16px;"></i>
-          </button>
-        </div>
 
-        <p class="sync-help-text">
-          이 다이어리는 기본적으로 웹 브라우저의 안전한 로컬 저장소에 저장됩니다. <br/>
-          다른 기기(아이폰, 태블릿, 다른 PC 등)와 데이터를 실시간으로 동기화하려면 본인의 <strong>Firebase Firestore</strong> 프로젝트 설정을 입력하세요.
-        </p>
-
-        <div class="config-status-badge disconnected" id="sync-status-badge">
-          <span class="status-indicator" style="width: 8px; height: 8px; border-radius: 50%; background: #9ca3af;" id="sync-status-indicator-dot"></span>
-          <span id="sync-status-text">로컬 저장소 모드 (오프라인)</span>
-        </div>
-
-        <div style="display: flex; flex-direction: column; gap: 12px; margin-top: 6px;">
-          <div class="form-group">
-            <label class="picker-label" style="font-size: 0.75rem;">Firebase API Key</label>
-            <input type="password" class="input-text" id="firebase-apiKey" placeholder="AIzaSy..." />
-          </div>
-          <div class="form-group">
-            <label class="picker-label" style="font-size: 0.75rem;">Project ID</label>
-            <input type="text" class="input-text" id="firebase-projectId" placeholder="my-mood-diary" />
-          </div>
-          <div class="form-group">
-            <label class="picker-label" style="font-size: 0.75rem;">App ID</label>
-            <input type="text" class="input-text" id="firebase-appId" placeholder="1:12345:web:abcd..." />
-          </div>
-          <div class="form-group" id="google-client-id-group">
-            <label class="picker-label" style="font-size: 0.75rem;">구글 로그인 Client ID (선택사항 - 구글 연동용)</label>
-            <input type="text" class="input-text" id="google-clientId" placeholder="12345-abcde.apps.googleusercontent.com" />
-            <span class="sync-help-text" style="font-size: 0.7rem; color: var(--text-muted);">
-              * 빈칸 시 기본 테스트 계정 혹은 공용 테스트 구글 로그인 모드로 작동합니다.
-            </span>
-          </div>
-        </div>
-
-        <div class="modal-actions" style="margin-top: 15px;">
-          <button class="btn-delete" id="btn-reset-sync-config" style="border-color: var(--text-muted); color: var(--text-muted);">초기화</button>
-          <button class="btn-secondary" id="btn-close-sync-settings">닫기</button>
-          <button class="btn-primary" id="btn-save-sync-config">설정 저장</button>
-        </div>
-      </div>
-    </div>
 
     <!-- Floating Toast Message Container -->
     <div class="toast-container" id="toast-message">
@@ -244,6 +191,6 @@
     </div>
 
     <!-- Application Script Logic -->
-    <script src="app.js"></script>
+    <script type="module" src="/app.js"></script>
   </body>
 </html>
