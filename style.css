@@ -108,9 +108,11 @@ body {
 /* 4. Header Component Styling */
 header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
   padding: 16px 24px;
+  gap: 12px;
 }
 
 .brand-section {
@@ -126,6 +128,8 @@ header {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   letter-spacing: -0.5px;
+  white-space: nowrap;
+  word-break: keep-all;
 }
 
 .brand-subtitle {
@@ -136,6 +140,7 @@ header {
 
 .actions-section {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 12px;
 }
@@ -238,8 +243,10 @@ header {
 
 .calendar-header {
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: center;
+  gap: 12px;
 }
 
 .current-month-year {
@@ -769,3 +776,33 @@ header {
   font-weight: 500;
   color: var(--text-primary);
 }
+
+
+/* ================= LOCK SCREEN ================= */
+.lock-screen-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: var(--bg);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.lock-screen-box {
+  width: 90%;
+  max-width: 400px;
+  padding: 40px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+#password-error {
+  min-height: 20px;
+}
+
