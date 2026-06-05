@@ -293,12 +293,21 @@ async function loadDiaryEntries() {
 }
 
 // 5. Auth Controller
-function handleLoginSuccess(userPayload) {
+function handleLoginSuccess(userPayload, skipSave = false) {
   state.currentUser = {
     name: userPayload.name,
     email: userPayload.email,
     picture: userPayload.picture
   };
+  
+  if (!skipSave) {
+    // Save session with 2-hour expiry (7200000 ms)
+    const sessionData = {
+      payload: userPayload,
+      expiry: Date.now() + 7200000
+    };
+    localStorage.setItem('diary_user_session', JSON.stringify(sessionData));
+  }
   
   // Update Profile UI
   elements.userNameText.textContent = state.currentUser.name;
@@ -410,6 +419,8 @@ function handleLogout() {
     email: 'guest_user',
     picture: 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><rect width=%22100%22 height=%22100%22 fill=%22%23a855f7%22/><text x=%2250%22 y=%2265%22 font-size=%2250%22 fill=%22%23ffffff%22 text-anchor=%22middle%22>👤</text></svg>'
   };
+  
+  localStorage.removeItem('diary_user_session');
   
   elements.authContainer.style.display = 'flex';
   elements.profileContainer.style.display = 'none';
@@ -942,8 +953,24 @@ async function bootstrapApp() {
   // 3. Initialize Firebase Database Sync (if credentials stored)
   initFirebase();
   
-  // 4. Set up Auth UI & Google GSI script
-  renderGoogleButton();
+  // 4. Check existing session or setup Auth UI
+  const savedSessionStr = localStorage.getItem('diary_user_session');
+  if (savedSessionStr) {
+    try {
+      const sessionData = JSON.parse(savedSessionStr);
+      if (sessionData.expiry > Date.now()) {
+        console.log('Restoring 2-hour session');
+        handleLoginSuccess(sessionData.payload, true);
+      } else {
+        localStorage.removeItem('diary_user_session');
+        renderGoogleButton();
+      }
+    } catch(e) {
+      renderGoogleButton();
+    }
+  } else {
+    renderGoogleButton();
+  }
   
   // 5. App remains locked until handleLoginSuccess -> checkPasswordSetup
   // Guests will see empty data via loadDiaryEntries inside handleLogout 
