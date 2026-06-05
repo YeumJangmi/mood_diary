@@ -108,6 +108,18 @@ const elements = {
 };
 
 // 3. Helper Functions
+function safeCreateIcons() {
+  if (typeof lucide !== 'undefined') {
+    try {
+      lucide.createIcons();
+    } catch (e) {
+      console.warn('Lucide icons creation failed:', e);
+    }
+  } else {
+    console.warn('Lucide library not loaded yet.');
+  }
+}
+
 function showToast(message, isSuccess = true) {
   elements.toastText.textContent = message;
   if (isSuccess) {
@@ -117,7 +129,7 @@ function showToast(message, isSuccess = true) {
     elements.toastIcon.setAttribute('data-lucide', 'alert-circle');
     elements.toastMessage.style.borderColor = 'var(--danger)';
   }
-  lucide.createIcons();
+  safeCreateIcons();
   
   elements.toastMessage.classList.add('active');
   setTimeout(() => {
@@ -791,7 +803,7 @@ function updateThemeUI(theme) {
     elements.themeIcon.setAttribute('data-lucide', 'sun');
     if (metaThemeColor) metaThemeColor.setAttribute('content', '#ffffff');
   }
-  lucide.createIcons();
+  safeCreateIcons();
   
   // Redraw google button theme
   renderGoogleButton();
@@ -932,10 +944,14 @@ async function bootstrapApp() {
   registerServiceWorker();
   
   // 8. Render lucide icons
-  lucide.createIcons();
+  safeCreateIcons();
   
   console.log('Mood Diary app initialized successfully.');
 }
 
-// Start Application on DOM Content Loaded
-document.addEventListener('DOMContentLoaded', bootstrapApp);
+// Start Application immediately if DOM is ready, or wait for load
+if (document.readyState === 'interactive' || document.readyState === 'complete') {
+  bootstrapApp();
+} else {
+  document.addEventListener('DOMContentLoaded', bootstrapApp);
+}
