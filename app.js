@@ -443,8 +443,8 @@ function renderGoogleButton() {
   }
   
   if (typeof google === 'undefined') {
-    console.warn('Google Identity Services SDK not loaded yet.');
-    renderMockGoogleButton();
+    console.warn('Google Identity Services SDK not loaded yet. Waiting...');
+    setTimeout(renderGoogleButton, 100);
     return;
   }
   
