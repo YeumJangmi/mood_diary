@@ -4,6 +4,8 @@
 ================================================================
 */
 
+import { POSITIVE_EMOTICONS, NEGATIVE_EMOTICONS, ALL_CUSTOM_EMOTICONS } from './emoticons.js';
+
 // 1. Initial State & Configuration
 const DEFAULT_EMOJIS = [
   // 감정 (Emotions)
@@ -42,6 +44,7 @@ let state = {
 
   db: null, // Firebase db 인스턴스
   selectedEmoji: '', // 모달에서 현재 선택된 이모지
+  activeEmojiTab: 'basic', // 현재 활성화된 이모지 탭 ('basic', 'positive', 'negative')
   activeModalDate: '', // 모달이 띄워진 날짜 (YYYY-MM-DD)
   deferredInstallPrompt: null, // PWA 설치 프롬프트
   isLocked: false,
@@ -591,7 +594,14 @@ function renderCalendar() {
     
     let cellContent = `<span class="day-number">${day}</span>`;
     if (entry) {
-      cellContent += `<span class="day-emoji">${entry.emoji}</span>`;
+      if (entry.emoji.startsWith('svg:')) {
+        const id = entry.emoji.replace('svg:', '');
+        const emo = ALL_CUSTOM_EMOTICONS[id];
+        const customSvg = emo ? emo.svg : '❓';
+        cellContent += `<span class="day-emoji" title="${emo ? emo.label : ''}">${customSvg}</span>`;
+      } else {
+        cellContent += `<span class="day-emoji">${entry.emoji}</span>`;
+      }
     } else {
       cellContent += `<div style="flex-grow: 1;"></div>`; // spacer
     }
@@ -650,21 +660,37 @@ function renderStatistics() {
   // Sort moods by frequency
   const sortedMoods = Object.keys(moodCounts)
     .map(emoji => {
-      // Find label if available
-      const preset = DEFAULT_EMOJIS.find(e => e.char === emoji);
-      const label = preset ? preset.label : '기타';
+      let label = '기타';
+      let displayHtml = emoji;
+      let isSvg = false;
+      
+      if (emoji.startsWith('svg:')) {
+        const id = emoji.replace('svg:', '');
+        const emo = ALL_CUSTOM_EMOTICONS[id];
+        if (emo) {
+          label = emo.label;
+          displayHtml = `<span class="svg-icon">${emo.svg}</span>`;
+          isSvg = true;
+        }
+      } else {
+        const preset = DEFAULT_EMOJIS.find(e => e.char === emoji);
+        if (preset) label = preset.label;
+      }
+      
       return {
         emoji: emoji,
+        displayHtml: displayHtml,
         label: label,
         count: moodCounts[emoji],
-        percentage: Math.round((moodCounts[emoji] / recordCount) * 100)
+        percentage: Math.round((moodCounts[emoji] / recordCount) * 100),
+        isSvg: isSvg
       };
     })
     .sort((a, b) => b.count - a.count);
     
   // Primary (Predominant) Mood
   const topMood = sortedMoods[0];
-  elements.statMainMood.textContent = `${topMood.emoji} ${topMood.label}`;
+  elements.statMainMood.innerHTML = `${topMood.displayHtml} <span>${topMood.label}</span>`;
   
   // Render progress bars
   elements.moodRatiosList.innerHTML = '';
@@ -677,20 +703,26 @@ function renderStatistics() {
     
     // Choose custom color depending on emoji type (defaults to accent color)
     let fillBg = 'var(--accent)';
-    const preset = DEFAULT_EMOJIS.find(e => e.char === mood.emoji);
-    if (preset) {
-      if (preset.label === '기쁨') fillBg = 'var(--color-happy)';
-      else if (preset.label === '신남') fillBg = 'var(--color-excited)';
-      else if (preset.label === '평온') fillBg = 'var(--color-calm)';
-      else if (preset.label === '슬픔') fillBg = 'var(--color-sad)';
-      else if (preset.label === '화남') fillBg = 'var(--color-angry)';
-      else if (preset.label === '피곤') fillBg = 'var(--color-tired)';
-      else if (preset.label.includes('하트')) fillBg = '#ec4899'; // Pink for hearts
-      else if (preset.label === '별' || preset.label === '반짝임') fillBg = '#f59e0b'; // Gold
+    
+    if (mood.isSvg) {
+      if (mood.emoji.startsWith('svg:pos_')) fillBg = 'var(--color-happy)';
+      else fillBg = 'var(--color-sad)';
+    } else {
+      const preset = DEFAULT_EMOJIS.find(e => e.char === mood.emoji);
+      if (preset) {
+        if (preset.label === '기쁨') fillBg = 'var(--color-happy)';
+        else if (preset.label === '신남') fillBg = 'var(--color-excited)';
+        else if (preset.label === '평온') fillBg = 'var(--color-calm)';
+        else if (preset.label === '슬픔') fillBg = 'var(--color-sad)';
+        else if (preset.label === '화남') fillBg = 'var(--color-angry)';
+        else if (preset.label === '피곤') fillBg = 'var(--color-tired)';
+        else if (preset.label.includes('하트')) fillBg = '#ec4899'; // Pink for hearts
+        else if (preset.label === '별' || preset.label === '반짝임') fillBg = '#f59e0b'; // Gold
+      }
     }
     
     row.innerHTML = `
-      <span class="mood-bar-label">${mood.emoji} <span style="font-size:0.75rem; color:var(--text-muted);">${mood.count}회</span></span>
+      <span class="mood-bar-label">${mood.displayHtml} <span style="font-size:0.75rem; color:var(--text-muted);">${mood.count}회</span></span>
       <div class="mood-bar-track">
         <div class="mood-bar-fill" style="width: ${mood.percentage}%; background: ${fillBg};"></div>
       </div>
@@ -736,23 +768,49 @@ function closeDiaryModal() {
 function renderEmojiPicker() {
   elements.emojiPickerGrid.innerHTML = '';
   
-  // Built-in preset emojis
-  const builtInEmojis = DEFAULT_EMOJIS.map(e => e.char);
-  
-  // Merge built-in presets with user's custom emojis
-  const allEmojis = [...new Set([...builtInEmojis, ...state.customEmojis])];
-  
-  allEmojis.forEach(emoji => {
+  if (state.activeEmojiTab === 'basic') {
+    // Built-in preset emojis
+    const builtInEmojis = DEFAULT_EMOJIS.map(e => e.char);
+    
+    // Merge built-in presets with user's custom emojis
+    const allEmojis = [...new Set([...builtInEmojis, ...state.customEmojis])];
+    
+    allEmojis.forEach(emoji => {
+      const item = document.createElement('div');
+      item.className = `emoji-item ${state.selectedEmoji === emoji ? 'selected' : ''}`;
+      item.textContent = emoji;
+      
+      item.onclick = () => {
+        // Toggle selection
+        const previousSelected = elements.emojiPickerGrid.querySelector('.emoji-item.selected');
+        if (previousSelected) previousSelected.classList.remove('selected');
+        
+        state.selectedEmoji = emoji;
+        item.classList.add('selected');
+      };
+      
+      elements.emojiPickerGrid.appendChild(item);
+    });
+  } else if (state.activeEmojiTab === 'positive') {
+    renderCustomEmoticonsTab(POSITIVE_EMOTICONS);
+  } else if (state.activeEmojiTab === 'negative') {
+    renderCustomEmoticonsTab(NEGATIVE_EMOTICONS);
+  }
+}
+
+function renderCustomEmoticonsTab(emoticons) {
+  emoticons.forEach(emo => {
     const item = document.createElement('div');
-    item.className = `emoji-item ${state.selectedEmoji === emoji ? 'selected' : ''}`;
-    item.textContent = emoji;
+    const isSelected = state.selectedEmoji === `svg:${emo.id}`;
+    item.className = `emoji-item ${isSelected ? 'selected' : ''}`;
+    item.innerHTML = emo.svg;
+    item.title = emo.label;
     
     item.onclick = () => {
-      // Toggle selection
       const previousSelected = elements.emojiPickerGrid.querySelector('.emoji-item.selected');
       if (previousSelected) previousSelected.classList.remove('selected');
       
-      state.selectedEmoji = emoji;
+      state.selectedEmoji = `svg:${emo.id}`;
       item.classList.add('selected');
     };
     
@@ -892,6 +950,19 @@ function registerServiceWorker() {
 function bindEventListeners() {
   // Theme Toggle
   elements.themeToggleBtn.addEventListener('click', toggleTheme);
+  
+  // Emoji Tabs
+  elements.emojiTabs = document.querySelectorAll('.emoji-tab-btn');
+  if (elements.emojiTabs) {
+    elements.emojiTabs.forEach(tab => {
+      tab.addEventListener('click', (e) => {
+        elements.emojiTabs.forEach(t => t.classList.remove('active'));
+        e.target.classList.add('active');
+        state.activeEmojiTab = e.target.getAttribute('data-tab');
+        renderEmojiPicker();
+      });
+    });
+  }
   
   // Calendar Nav
   elements.prevMonthBtn.addEventListener('click', () => {

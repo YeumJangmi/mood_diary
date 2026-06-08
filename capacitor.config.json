@@ -1,6 +1,5 @@
 {
   "appId": "com.dairy.mooddiary",
   "appName": "기분 다이어리",
-  "webDir": ".",
-  "bundledWebRuntime": false
+  "webDir": "dist"
 }

@@ -170,7 +170,11 @@
         
         <!-- Emoji Selection Picker -->
         <div class="emoji-picker-section">
-          <span class="picker-label">오늘의 감정이나 기호를 선택하세요</span>
+          <div class="emoji-tabs">
+            <button class="emoji-tab-btn active" data-tab="basic">기본 이모지</button>
+            <button class="emoji-tab-btn" data-tab="positive">긍정</button>
+            <button class="emoji-tab-btn" data-tab="negative">부정</button>
+          </div>
           <div class="emoji-grid" id="emoji-picker-grid">
             <!-- Emojis (both built-in and user-customized) will be rendered here -->
           </div>
