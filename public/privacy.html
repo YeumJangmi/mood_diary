@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>개인정보 처리방침 | 기분 다이어리</title>
+    <style>
+      :root {
+        color: #1e1b4b;
+        background: #f8fafc;
+        font-family: -apple-system, BlinkMacSystemFont, "Noto Sans KR", "Segoe UI", sans-serif;
+      }
+
+      body {
+        margin: 0;
+        padding: 32px 18px;
+      }
+
+      main {
+        width: min(720px, 100%);
+        margin: 0 auto;
+        line-height: 1.7;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: 1.8rem;
+      }
+
+      h2 {
+        margin: 28px 0 8px;
+        font-size: 1.1rem;
+      }
+
+      p,
+      li {
+        color: #475569;
+        font-size: 0.96rem;
+      }
+
+      a {
+        color: #4f46e5;
+      }
+
+      .updated {
+        color: #64748b;
+        font-size: 0.88rem;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header style="margin-bottom: 24px; padding-top: env(safe-area-inset-top);">
+        <a href="index.html" style="display: inline-block; padding: 8px 12px; background: #e2e8f0; border-radius: 8px; color: #1e293b; text-decoration: none; font-weight: 500;">
+          ← 앱으로 돌아가기
+        </a>
+      </header>
+      <h1>개인정보 처리방침</h1>
+      <p class="updated">시행일: 2026년 6월 26일</p>
+
+      <p>
+        기분 다이어리는 사용자가 선택한 감정, 짧은 일기, 사용자 설정을 저장해 개인 감정 기록을 제공하는 서비스입니다.
+      </p>
+
+      <h2>수집 및 저장하는 정보</h2>
+      <ul>
+        <li>일기 기록: 날짜, 감정 이모지, 사용자가 입력한 짧은 메시지</li>
+        <li>앱 설정: 테마, 사용자 추가 이모지, 잠금 비밀번호 해시</li>
+        <li>Google 로그인을 사용하는 경우: 이름, 이메일, 프로필 이미지</li>
+      </ul>
+
+      <h2>정보 저장 위치</h2>
+      <p>
+        로그인하지 않고 사용하는 기록은 사용자의 브라우저 또는 기기 안에 저장됩니다. Google 로그인 후 클라우드 동기화를 사용하는 경우 일기 기록과 잠금 설정이 Firebase Firestore에 저장될 수 있습니다.
+      </p>
+
+      <h2>비밀번호</h2>
+      <p>
+        잠금 비밀번호는 원문 그대로 저장하지 않고, 무작위 소금값을 더한 해시 형태로 저장합니다. 비밀번호를 잊어버린 경우 로컬 전용 데이터는 복구할 수 없습니다.
+      </p>
+
+      <h2>제3자 제공</h2>
+      <p>
+        서비스 운영에 필요한 Google 로그인 및 Firebase 동기화 외에 사용자의 일기 내용을 제3자에게 판매하거나 공유하지 않습니다.
+      </p>
+
+      <h2>삭제</h2>
+      <p>
+        앱에서 개별 일기를 삭제할 수 있습니다. 로컬 전용 모드에서 비밀번호를 초기화하면 기기에 저장된 일기 데이터도 함께 삭제됩니다. 클라우드에 저장된 데이터 삭제가 필요한 경우 저장소 이슈 또는 앱스토어 지원 채널로 요청할 수 있습니다.
+      </p>
+
+      <h2>문의</h2>
+      <p>
+        개인정보 관련 문의는 <a href="https://github.com/YeumJangmi/mood_diary">GitHub 저장소</a>를 통해 남길 수 있습니다.
+      </p>
+    </main>
+  </body>
+</html>
